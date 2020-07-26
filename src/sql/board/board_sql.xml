@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="board">
+    
+    <resultMap type="com.spring.board.vo.BoardVo" id="boardVo">
+    	<result property="boardType" 	column="BOARD_TYPE"/>
+    	<result property="boardNum" 	column="BOARD_NUM"/>
+    	<result property="boardTitle" 	column="BOARD_TITLE"/>
+    	<result property="boardComment" column="BOARD_COMMENT"/>
+    	<result property="codeName" column="CODE_NAME"/>
+    </resultMap>
+    <resultMap type="com.spring.board.vo.CodeVo" id="codeVo">
+    	<result property="codeType" 	column="CODE_TYPE"/>
+    	<result property="codeId" 	column="CODE_ID"/>
+    	<result property="codeName" 	column="CODE_NAME"/>
+    	<result property="creator" column="CREATOR"/>
+    	<result property="createTime" column="CREATOR_TIME"/>
+    	<result property="modifier" column="MODIFIER"/>
+    	<result property="modifiedTime" column="MODIFIED_TIME"/>
+    </resultMap>
+    <resultMap type="com.spring.board.vo.UserVo" id="userVo">
+    	<result property="userId" column="USER_ID"/>
+    	<result property="userPw" column="USER_PW"/>
+    	<result property="userName" column="USER_NAME"/>
+    	<result property="userPhone1" column="USER_PHONE1"/>
+    	<result property="userPhone2" column="USER_PHONE2"/>
+    	<result property="userPhone3" column="USER_PHONE3"/>
+    	<result property="userAddr1" column="USER_ADDR1"/>
+    	<result property="userAddr2" column="USER_ADDR2"/>
+    	<result property="userCompany" column="USER_COMPANY"/>
+    </resultMap>
+
+    <select id="boardList" parameterType="com.spring.board.vo.SearchCriteria" resultMap="boardVo">
+        SELECT 
+		  BOARD_TYPE
+		  ,BOARD_NUM
+		  ,BOARD_TITLE
+		  ,BOARD_COMMENT
+		  ,TOTAL_CNT
+          ,CODE_NAME
+		FROM 
+		(
+		  SELECT
+		      	BOARD.BOARD_TYPE
+				,BOARD.BOARD_NUM
+				,BOARD.BOARD_TITLE
+				,BOARD.BOARD_COMMENT
+                ,BOARD.CODE_NAME
+		      	,ROW_NUMBER() OVER(ORDER BY BOARD_NUM DESC) AS NUMROW
+		      	,COUNT(*) OVER() AS TOTAL_CNT
+			FROM
+				(SELECT BRD.BOARD_TYPE
+                    ,BRD.BOARD_NUM
+                    ,BRD.BOARD_TITLE
+                    ,BRD.BOARD_COMMENT
+                    ,CODE.CODE_NAME
+                FROM
+                    BOARD BRD INNER JOIN COM_CODE CODE
+                ON 
+                    BRD.BOARD_TYPE = CODE.CODE_ID
+                ) BOARD
+                <include refid="search"></include>
+                ORDER BY BOARD_NUM DESC
+		)
+		WHERE NUMROW BETWEEN (#{pageNo}-1)*10 + 1 AND (#{pageNo})*10
+    </select>
+    
+    <select id="boardTotal" parameterType="com.spring.board.vo.SearchCriteria" resultType="int">
+		  SELECT
+		      	COUNT(*) AS TOTAL_CNT
+			FROM
+				BOARD
+			<include refid="search"></include>
+    </select>
+    	
+    <select id="boardView" parameterType="com.spring.board.vo.BoardVo" resultMap="boardVo">
+    	SELECT
+        	BOARD_TYPE
+			,BOARD_NUM
+			,BOARD_TITLE
+			,BOARD_COMMENT
+		FROM
+			BOARD
+    	WHERE 	BOARD_TYPE = #{boardType}
+    	AND 	BOARD_NUM  = #{boardNum}
+    </select>	
+    
+    <select id="boardInsert" parameterType="com.spring.board.vo.BoardVo">
+        INSERT INTO 
+        	BOARD
+        		(BOARD_TYPE
+       			,BOARD_NUM
+        		,BOARD_TITLE
+        		,BOARD_COMMENT
+        		,CREATOR
+        		,CREATE_TIME
+        		,MODIFIER
+        		,MODIFIED_TIME
+        	)
+        	VALUES
+        		(#{boardType}
+        		,(SELECT TO_NUMBER(NVL(MAX(BOARD_NUM+1), 1))
+	    			FROM BOARD
+	   				WHERE BOARD_TYPE = #{boardType})
+        		,#{boardTitle}
+        		,#{boardComment}
+        		,#{creator}
+        		,TO_CHAR(SYSDATE)
+        		,'SYSTEM'
+        		,TO_CHAR(SYSDATE)
+       		)
+    </select>
+    
+    <update id="boardUpdate" parameterType="com.spring.board.vo.BoardVo">
+    	
+    	UPDATE 
+    		BOARD
+    	SET
+    		board_title = #{boardTitle}
+    		,BOARD_COMMENT =#{boardComment}
+    		,CREATOR = 'SYSTEM'
+    		,CREATE_TIME = TO_CHAR(SYSDATE)
+    		,MODIFIER = 'SYSTEM'
+    		,MODIFIED_TIME = TO_CHAR(SYSDATE)
+    	WHERE
+    		BOARD_TYPE = #{boardType}
+    	AND
+    		BOARD_NUM = #{boardNum}
+    	
+    </update>
+    
+    <delete id="boardDelete" parameterType="com.spring.board.vo.BoardVo">
+    	DELETE 
+    	FROM 
+    		BOARD 
+    	WHERE board_Type = #{boardType}
+    	AND board_Num = #{boardNum}  
+    </delete>
+    
+    <select id="codeSelectMenu" resultMap="codeVo">
+    	SELECT
+    		CODE_TYPE
+    		,CODE_ID
+    		,CODE_NAME
+    		,CREATOR
+    		,CREATE_TIME
+    		,MODIFIER
+    		,MODIFIED_TIME
+    	FROM
+    		COM_CODE
+    	WHERE 
+    		CODE_TYPE = 'menu'
+    </select>
+     <select id="codeSelectPhone" resultMap="codeVo">
+    	SELECT
+    		CODE_TYPE
+    		,CODE_ID
+    		,CODE_NAME
+    		,CREATOR
+    		,CREATE_TIME
+    		,MODIFIER
+    		,MODIFIED_TIME
+    	FROM
+    		COM_CODE
+    	WHERE 
+    		CODE_TYPE = 'phone'
+    </select>
+ 	<insert id="signup" parameterType="com.spring.board.vo.UserVo">
+ 		INSERT INTO 
+ 			USER_INFO
+ 			(USER_ID
+ 			,USER_PW
+ 			,USER_NAME
+ 			,USER_PHONE1
+ 			,USER_PHONE2
+ 			,USER_PHONE3
+ 			,USER_ADDR1
+ 			,USER_ADDR2
+ 			,USER_COMPANY
+ 			)
+ 		VALUES
+ 			(#{userId}
+ 			,#{userPw}
+ 			,#{userName}
+ 			,#{userPhone1}
+ 			,#{userPhone2}
+ 			,#{userPhone3}
+ 			,#{userAddr1}
+ 			,#{userAddr2}
+ 			,#{userCompany}
+ 		)
+ 		
+ 		
+ 		
+ 	</insert >
+ 	<select id="idChk" resultType="int">
+ 		SELECT 
+ 			COUNT(*)
+ 		FROM
+ 			USER_INFO
+ 		WHERE 
+ 			USER_ID = #{userId}
+ 	</select>
+ 	<select id="login" resultMap="userVo">
+ 		SELECT
+ 			USER_ID
+ 			,USER_PW
+ 			,USER_NAME
+ 		FROM
+ 			USER_INFO
+ 		WHERE
+ 			USER_ID = #{userId}
+ 		AND
+ 			USER_PW like '%' || #{userPw} || '%' 
+ 	</select>
+ 	
+ 	<sql id="search">
+		<if test="searchKeys != null and searchKeys != ''">
+			<where>
+				<foreach collection="searchKeys" item="item" separator="OR" index="index">
+					BOARD_TYPE like '%' || #{item} || '%'
+				</foreach>
+			</where>
+		</if>
+	</sql> 
+</mapper>
